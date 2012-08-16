@@ -32,7 +32,7 @@ attribute :debug, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :collectstatic, :kind_of => [TrueClass, FalseClass, String], :default => false
 
 def local_settings_base
-  local_settings_file.split(/[\\\/]/).last
+  ::File.basename(local_settings_file)
 end
 
 def virtualenv
