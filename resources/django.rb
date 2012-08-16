@@ -26,14 +26,11 @@ attribute :requirements, :kind_of => [NilClass, String, FalseClass], :default =>
 attribute :legacy_database_settings, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :settings, :kind_of => Hash, :default => {}
 # Actually defaults to "settings.py.erb", but nil means it wasn't set by the user
+# (note this is for generating the local_settings.py your settings.py isn't touched)
 attribute :settings_template, :kind_of => [String, NilClass], :default => nil
 attribute :local_settings_file, :kind_of => String, :default => 'local_settings.py'
 attribute :debug, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :collectstatic, :kind_of => [TrueClass, FalseClass, String], :default => false
-
-def local_settings_base
-  ::File.basename(local_settings_file)
-end
 
 def virtualenv
   "#{path}/shared/env"
