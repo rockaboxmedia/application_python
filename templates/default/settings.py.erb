@@ -1,20 +1,30 @@
 DEBUG = <%= @debug ? "True" : "False" %>
 
 DATABASES = {
-    'default': {
-        'NAME': '<%= @database[:settings][:database] %>',
-        'ENGINE': 'django.db.backends.<%= @database[:settings][:adapter] %>',
-        'USER': '<%= @database[:settings][:username] %>',
-        'PASSWORD': '<%= @database[:settings][:password] %>',
-        'HOST': '<%= @database[:host] %>',
-        'PORT': '<%= @database[:settings][:port]  %>',
+	<% @databases.each do |name,db| -%>
+    '<%= name %>': {
+        'NAME': '<%= db[:database] %>',
+        'ENGINE': 'django.db.backends.<%= db[:engine] %>',
+        'USER': '<%= db[:username] %>',
+        'PASSWORD': '<%= db[:password] %>',
+        'HOST': '<%= db.fetch :host, @default_database_host %>',
+        'PORT': '<%= db[:port]  %>',
+        <% if db[:options] -%>
+        'OPTIONS': {
+        	<% db[:options].each do |key,value|  -%>
+        	'<%= key %>': "<%= value %>",
+        	<% end %>
+	    }
+	    <% end -%>
     },
+    <% end -%>
 }
-<% if @database[:legacy] -%>
+<% if @legacy_database_settings -%>
 DATABASE_ENGINE = DATABASES['default']['ENGINE']
 DATABASE_NAME = DATABASES['default']['NAME']
 DATABASE_USER = DATABASES['default']['USER']
 DATABASE_PASSWORD = DATABASES['default']['PASSWORD']
 DATABASE_HOST = DATABASES['default']['HOST']
 DATABASE_PORT = DATABASES['default']['PORT']
+DATABASE_OPTIONS = DATABASES['default'].get('OPTIONS', {})
 <% end -%>

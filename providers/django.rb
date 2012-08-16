@@ -120,10 +120,8 @@ def created_settings_file
     group new_resource.group
     mode "644"
     variables new_resource.settings.clone
-    variables.update :debug => new_resource.debug, :database => {
-      :host => host,
-      :settings => new_resource.database,
-      :legacy => new_resource.legacy_database_settings
-    }
+    variables.update :debug => new_resource.debug, :databases => new_resource.databases,
+      :legacy_database_settings => new_resource.legacy_database_settings,
+      :default_database_host => host
   end
 end

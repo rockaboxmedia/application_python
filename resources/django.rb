@@ -39,8 +39,16 @@ def virtualenv
   "#{path}/shared/env"
 end
 
-def database(*args, &block)
-  @database ||= Mash.new
-  @database.update(options_block(*args, &block))
-  @database
+def database(db_name='default', &block)
+  # add a new db to django settings
+  # block args are passed through to settings.py.erb
+  @databases ||= {}
+  db ||= Mash.new
+  db.update(options_block(&block))
+  @databases[db_name] = db
+  db
+end
+
+def databases
+  @databases
 end
