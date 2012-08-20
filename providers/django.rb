@@ -20,11 +20,23 @@
 
 include Chef::Mixin::LanguageIncludeRecipe
 
+def make_python_command(commands)
+  if not commands.respond_to? 'join'
+    commands = [commands]
+  end
+  commands.map! {|cmd| "#{::File.join(new_resource.virtualenv, "bin", "python")} #{cmd}"}
+  commands.join " && "
+end
+
 action :before_compile do
 
   include_recipe 'python'
 
-  new_resource.migration_command "#{::File.join(new_resource.virtualenv, "bin", "python")} manage.py syncdb --noinput" if !new_resource.migration_command
+  migration_cmds = ["manage.py syncdb --noinput"]
+  if new_resource.use_south
+    migration_cmds.push "manage.py syncdb"
+  end
+  new_resource.migration_command make_python_command(migration_cmds) if !new_resource.migration_command
 
   new_resource.symlink_before_migrate.update({
     new_resource.local_settings_base => new_resource.local_settings_file,
@@ -44,9 +56,10 @@ action :before_migrate do
   if new_resource.requirements.nil?
     # look for requirements.txt files in common locations
     [
-      ::File.join(new_resource.path, "requirements", "#{node.chef_environment}.txt"),
-      ::File.join(new_resource.path, "requirements.txt")
+      ::File.join(new_resource.release_path, "requirements", "#{node.chef_environment}.txt"),
+      ::File.join(new_resource.release_path, "requirements.txt")
     ].each do |path|
+      Chef::Log.info("Trying requirements path: " + path)
       if ::File.exists?(path)
         new_resource.requirements path
         break
@@ -60,7 +73,7 @@ action :before_migrate do
       cwd new_resource.release_path
     end
   else
-    Chef::Log.debug("No requirements file found")
+    Chef::Log.info("No requirements file found")
   end
 
 end

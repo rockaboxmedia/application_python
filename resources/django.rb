@@ -30,6 +30,7 @@ attribute :settings_template, :kind_of => [String, NilClass], :default => nil
 attribute :local_settings_file, :kind_of => String, :default => 'local_settings.py'
 attribute :debug, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :collectstatic, :kind_of => [TrueClass, FalseClass, String], :default => false
+attribute :use_south, :kind_of => [TrueClass, FalseClass], :default => false
 
 def local_settings_base
   ::File.basename(local_settings_file)
