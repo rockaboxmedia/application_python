@@ -1,0 +1,12 @@
+import os
+import sys
+import site
+
+site.addsitedir("<%= @site_packages %>")
+sys.path.append("<%= @app_path %>")
+
+os.environ['DJANGO_SETTINGS_MODULE'] = "<%= @django_settings_module %>"
+
+import django.core.handlers.wsgi
+
+application = django.core.handlers.wsgi.WSGIHandler()
