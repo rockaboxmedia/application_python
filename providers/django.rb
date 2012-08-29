@@ -18,7 +18,9 @@
 # limitations under the License.
 #
 
+require 'chef/mixin/shell_out'
 include Chef::Mixin::LanguageIncludeRecipe
+include Chef::Mixin::ShellOut
 
 def make_python_command(commands)
   if not commands.respond_to? 'join'
@@ -28,15 +30,17 @@ def make_python_command(commands)
   commands.join " && "
 end
 
-action :before_compile do
+# -----------
+# the actions below look like they should automatically happen
+# but they rely on hack in application/providers/default.rb to
+# get them called when 'django' is used as a sub-resource
+# -----------
 
+action :before_compile do
   include_recipe 'python'
 
-  migration_cmds = ["manage.py syncdb --noinput"]
-  if new_resource.use_south
-    migration_cmds.push "manage.py syncdb"
-  end
-  new_resource.migration_command make_python_command(migration_cmds) if !new_resource.migration_command
+  migration_cmd = new_resource.migration_command ? new_resource.migration_command : "manage.py syncdb --noinput"
+  new_resource.migration_command make_python_command(migration_cmd)
 
   new_resource.symlink_before_migrate.update({
     new_resource.local_settings_base => new_resource.local_settings_file,
@@ -44,42 +48,15 @@ action :before_compile do
 end
 
 action :before_deploy do
-
   install_packages
-
   created_settings_file
-
 end
 
 action :before_migrate do
-
-  if new_resource.requirements.nil?
-    # look for requirements.txt files in common locations
-    [
-      ::File.join(new_resource.release_path, "requirements", "#{node.chef_environment}.txt"),
-      ::File.join(new_resource.release_path, "requirements.txt")
-    ].each do |path|
-      Chef::Log.info("Trying requirements path: " + path)
-      if ::File.exists?(path)
-        new_resource.requirements path
-        break
-      end
-    end
-  end
-  if new_resource.requirements
-    Chef::Log.info("Installing using requirements file: #{new_resource.requirements}")
-    pip_cmd = ::File.join(new_resource.virtualenv, 'bin', 'pip')
-    execute "#{pip_cmd} install -r #{new_resource.requirements}" do
-      cwd new_resource.release_path
-    end
-  else
-    Chef::Log.info("No requirements file found")
-  end
-
+  install_requirements
 end
 
 action :before_symlink do
-
   if new_resource.collectstatic
     cmd = new_resource.collectstatic.is_a?(String) ? new_resource.collectstatic : "collectstatic --noinput"
     execute "#{::File.join(new_resource.virtualenv, "bin", "python")} manage.py #{cmd}" do
@@ -97,8 +74,10 @@ action :before_symlink do
       end
     end
   end
-
 end
+
+# these blocks need to be here to avoid spurious errors
+# although currently they don't need to do anything
 
 action :before_restart do
 end
@@ -121,6 +100,40 @@ def install_packages
       action :install
     end
   end
+
+  if new_resource.packages
+    new_resource.updated_by_last_action(true)
+  end
+end
+
+def install_requirements
+  if new_resource.requirements.nil?
+    # look for requirements.txt files in common locations
+    [
+      ::File.join(new_resource.release_path, "requirements", "#{node.chef_environment}.txt"),
+      ::File.join(new_resource.release_path, "requirements.txt")
+    ].each do |path|
+      Chef::Log.info("Trying requirements path: " + path)
+      if ::File.exists?(path)
+        new_resource.requirements path
+        break
+      end
+    end
+  end
+  if new_resource.requirements
+    # The cleanest way to use pip here would be to use the python/pip resource but
+    # that is a package-centric resource not a generic wrapper on pip so we can't
+    # use it to just `pip install -r requirements.txt`
+    # So, we copy and paste some relevant bits of code instead...
+    timeout = 900
+    Chef::Log.info("Running: pip install -r #{new_resource.requirements}")
+    cmd = shell_out!("#{pip_cmd(new_resource)} install -r #{new_resource.requirements}", :timeout => timeout)
+    if cmd
+      new_resource.updated_by_last_action(true)
+    end
+  else
+    Chef::Log.info("No requirements file found")
+  end
 end
 
 def created_settings_file
@@ -136,5 +149,16 @@ def created_settings_file
     variables.update :debug => new_resource.debug, :databases => new_resource.databases,
       :legacy_database_settings => new_resource.legacy_database_settings,
       :default_database_host => host
+  end
+end
+
+# copy and pasted from 'python' cookbook 'pip' provider, because Chef sucks
+def pip_cmd(nr)
+  if (nr.respond_to?("virtualenv") && nr.virtualenv)
+    ::File.join(nr.virtualenv,'/bin/pip')
+  elsif "#{node['python']['install_method']}".eql?("source")
+    ::File.join("#{node['python']['prefix_dir']}","/bin/pip")
+  else
+    'pip'
   end
 end
