@@ -39,7 +39,7 @@ end
 action :before_compile do
   include_recipe 'python'
 
-  migration_cmd = new_resource.migration_command ? new_resource.migration_command : "manage.py syncdb --noinput"
+  migration_cmd = (new_resource.migration_command) ? new_resource.migration_command : "manage.py syncdb --noinput"
   new_resource.migration_command make_python_command(migration_cmd)
 
   new_resource.symlink_before_migrate.update({
