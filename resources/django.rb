@@ -30,6 +30,7 @@ attribute :settings_template, :kind_of => [String, NilClass], :default => nil
 attribute :local_settings_file, :kind_of => String, :default => 'local_settings.py'
 attribute :debug, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :collectstatic, :kind_of => [TrueClass, FalseClass, String], :default => false
+attribute :settings_module, :kind_of => String, :default => "settings"
 
 def local_settings_base
   ::File.basename(local_settings_file)
@@ -41,7 +42,10 @@ end
 
 def database(db_name='default', &block)
   # add a new db to django settings
-  # block args are passed through to settings.py.erb
+  # 
+  # block attrs are turned into a hash and ultimately passed through
+  # to the template as a hash of hashes under the :databases key
+  # (see providers/django.rb create_settings_file method)
   @databases ||= {}
   db ||= Mash.new
   db.update(options_block(&block))
@@ -49,6 +53,27 @@ def database(db_name='default', &block)
   db
 end
 
+def create_wsgi(path="conf/django.wsgi", &block)
+  # optionally specify details for an auto-generated wsgi file
+  # (defaults to django.wsgi.erb, or pass `template` via block)
+  #
+  # block attrs are turned into a hash and ultimately passed through
+  # to the template under the :wsgi_vars key
+  # (see providers/django.rb create_wsgi_file method)
+  @wsgi ||= Mash.new
+  @wsgi[:path] = path
+  @wsgi.update(options_block(&block))
+  @wsgi
+end
+
+# have to wrap attributes in getter methods if you want to
+# be able to access them from inside the provider
+# (some weird quirk of the Chef LWRP DSL)
+
 def databases
   @databases
+end
+
+def wsgi
+  @wsgi
 end

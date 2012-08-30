@@ -30,6 +30,11 @@ def make_python_command(commands)
   commands.join " && "
 end
 
+def site_packages_path
+  major_version = node['python']['version'].split('.')[0..-2].join('.')
+  ::File.join(new_resource.virtualenv, "lib/python#{major_version}/site-packages/")
+end
+
 # -----------
 # the actions below look like they should automatically happen
 # but they rely on hack in application/providers/default.rb to
@@ -45,11 +50,20 @@ action :before_compile do
   new_resource.symlink_before_migrate.update({
     new_resource.local_settings_base => new_resource.local_settings_file,
   })
+
+  if new_resource.wsgi
+    new_resource.symlink_before_migrate.update({
+      ::File.basename(new_resource.wsgi[:path]) => new_resource.wsgi[:path],
+    })
+  end
 end
 
 action :before_deploy do
   install_packages
-  created_settings_file
+  create_settings_file
+  if new_resource.wsgi
+    create_wsgi_file
+  end
 end
 
 action :before_migrate do
@@ -57,6 +71,10 @@ action :before_migrate do
 end
 
 action :before_symlink do
+  # this could also be called 'after_migrate' :)
+
+  create_superusers
+
   if new_resource.collectstatic
     cmd = new_resource.collectstatic.is_a?(String) ? new_resource.collectstatic : "collectstatic --noinput"
     execute "#{::File.join(new_resource.virtualenv, "bin", "python")} manage.py #{cmd}" do
@@ -85,7 +103,40 @@ end
 action :after_restart do
 end
 
+
 protected
+
+def create_superusers
+  node['wsgi_apps'][new_resource.name]['superusers'].each do |superuser|
+    # TODO: only if not exists
+    python "django_create_superuser" do
+      Chef::Log.info("CREATE SUPERUSERS: #{new_resource.settings_module} > #{new_resource.release_path}")
+      interpreter ::File.join(new_resource.virtualenv, "bin", "python")
+      code <<-PYTHON
+# Make Django work (as per wsgi file):
+import os
+import sys
+import site
+
+site.addsitedir("#{site_packages_path}")
+sys.path.append("#{new_resource.release_path}")
+
+os.environ['DJANGO_SETTINGS_MODULE'] = "#{new_resource.settings_module}"
+
+# Do what we want to do:
+from django.contrib.auth.models import User
+u, created = User.objects.get_or_create(
+  username='#{superuser['username']}',
+  email='#{superuser['email']}'
+)
+if created:
+  u.set_password('#{superuser['password']}')
+  u.save()
+      PYTHON
+      #ignore_failure true
+    end
+  end
+end
 
 def install_packages
   python_virtualenv new_resource.virtualenv do
@@ -136,7 +187,7 @@ def install_requirements
   end
 end
 
-def created_settings_file
+def create_settings_file
   host = new_resource.find_database_server(new_resource.database_master_role)
 
   template "#{new_resource.path}/shared/#{new_resource.local_settings_base}" do
@@ -149,6 +200,22 @@ def created_settings_file
     variables.update :debug => new_resource.debug, :databases => new_resource.databases,
       :legacy_database_settings => new_resource.legacy_database_settings,
       :default_database_host => host
+  end
+end
+
+def create_wsgi_file
+  template "#{new_resource.path}/shared/#{::File.basename(new_resource.wsgi[:path])}" do
+    source new_resource.wsgi[:template] || "django.wsgi.erb"
+    cookbook new_resource.wsgi[:template] ? String(new_resource.cookbook_name) : "application_python"
+    owner "root"
+    group "root"
+    mode 0644
+    variables(
+      :site_packages => site_packages_path,
+      :app_path => new_resource.release_path,
+      :django_settings_module => new_resource.settings_module,
+      :wsgi_vars => new_resource.wsgi
+    )
   end
 end
 
