@@ -117,7 +117,23 @@ import os
 import sys
 import site
 
-site.addsitedir("#{site_packages_path}")
+ALLDIRS = ["#{site_packages_path}"]
+
+# Remember original sys.path.
+prev_sys_path = list(sys.path) 
+
+# Add each new site-packages directory.
+for directory in ALLDIRS:
+  site.addsitedir(directory)
+
+# Reorder sys.path so new directories at the front.
+new_sys_path = [] 
+for item in list(sys.path): 
+    if item not in prev_sys_path: 
+        new_sys_path.append(item) 
+        sys.path.remove(item) 
+sys.path[:0] = new_sys_path
+
 sys.path.append("#{new_resource.release_path}")
 
 os.environ['DJANGO_SETTINGS_MODULE'] = "#{new_resource.settings_module}"
