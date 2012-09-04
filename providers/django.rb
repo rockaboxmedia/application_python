@@ -110,7 +110,6 @@ def create_superusers
   node['wsgi_apps'][new_resource.name]['superusers'].each do |superuser|
     # TODO: only if not exists
     python "django_create_superuser" do
-      Chef::Log.info("CREATE SUPERUSERS: #{new_resource.settings_module} > #{new_resource.release_path}")
       interpreter ::File.join(new_resource.virtualenv, "bin", "python")
       code <<-PYTHON
 # Make Django work (as per wsgi file):
