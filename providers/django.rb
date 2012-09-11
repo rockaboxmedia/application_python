@@ -160,6 +160,13 @@ def install_packages
     action :create
   end
 
+  # sometimes pip is broken - this hack fixes it...
+  # (in case of "ImportError: No module named pkg_resources")
+  execute "fix pip for [#{new_resource.name}]" do
+    command "curl http://python-distribute.org/distribute_setup.py | #{::File.join(new_resource.virtualenv, "bin", "python")}"
+    action :run
+  end
+
   new_resource.packages.each do |name, ver|
     python_pip name do
       version ver if ver && ver.length > 0
