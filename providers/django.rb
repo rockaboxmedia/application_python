@@ -22,11 +22,11 @@ require 'chef/mixin/shell_out'
 include Chef::Mixin::LanguageIncludeRecipe
 include Chef::Mixin::ShellOut
 
-def make_python_command(commands)
+def make_manage_py_commands(commands)
   if not commands.respond_to? 'join'
     commands = [commands]
   end
-  commands.map! {|cmd| "#{::File.join(new_resource.virtualenv, "bin", "python")} #{cmd}"}
+  commands.map! {|cmd| "#{::File.join(new_resource.virtualenv, "bin", "python")} manage.py #{cmd}"}
   commands.join " && "
 end
 
@@ -44,8 +44,9 @@ end
 action :before_compile do
   include_recipe 'python'
 
-  migration_cmd = (new_resource.migration_command) ? new_resource.migration_command : "manage.py syncdb --noinput"
-  new_resource.migration_command make_python_command(migration_cmd)
+  migration_cmds = (new_resource.migration_command) ? [new_resource.migration_command] : []
+  migration_cmds.push(make_manage_py_commands(new_resource.manage_py_migration_commands))
+  new_resource.migration_command migration_cmds.join " && "
 
   new_resource.symlink_before_migrate.update({
     new_resource.local_settings_base => new_resource.local_settings_file,
