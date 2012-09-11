@@ -31,6 +31,7 @@ action :before_compile do
       run_context.resource_collection.find(:supervisor_service => "#{new_resource.application.name}-celeryd").run_action(:restart) if new_resource.celeryd
       run_context.resource_collection.find(:supervisor_service => "#{new_resource.application.name}-celerybeat").run_action(:restart) if new_resource.celerybeat
       run_context.resource_collection.find(:supervisor_service => "#{new_resource.application.name}-celerycam").run_action(:restart) if new_resource.celerycam
+      run_context.resource_collection.find(:supervisor_service => "#{new_resource.application.name}-flower").run_action(:restart) if new_resource.flower
     end
   end
 
@@ -50,6 +51,11 @@ end
 action :before_deploy do
 
   new_resource = @new_resource
+
+  if new_resource.django
+    django_resource = new_resource.application.sub_resources.select{|res| res.type == :django}.first
+    raise "No Django deployment resource found" unless django_resource
+  end
 
   template ::File.join(new_resource.application.path, "shared", new_resource.config_base) do
     source new_resource.template || "celeryconfig.py.erb"
@@ -73,12 +79,23 @@ action :before_deploy do
     cmds[:celerycam] = cmd
   end
 
+  if new_resource.flower
+    python_pip "flower" do
+      if new_resource.django
+        virtualenv django_resource.virtualenv
+      end
+      action :install
+    end
+    cmds[:flower] = "celery flower"# default port is 5555
+    if new_resource.flower_port
+      cmds[:flower] += " --port=#{new_resource.flower_port}"
+    end
+  end
+
   cmds.each do |type, cmd|
     supervisor_service "#{new_resource.application.name}-#{type}" do
       action :enable
       if new_resource.django
-        django_resource = new_resource.application.sub_resources.select{|res| res.type == :django}.first
-        raise "No Django deployment resource found" unless django_resource
         command "#{::File.join(django_resource.virtualenv, "bin", "python")} manage.py #{cmd}"
       else
         command cmd
