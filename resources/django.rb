@@ -32,6 +32,7 @@ attribute :debug, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :collectstatic, :kind_of => [TrueClass, FalseClass, String], :default => false
 attribute :settings_module, :kind_of => String, :default => "settings"
 attribute :manage_py_migration_commands, :kind_of => Array, :default => ['syncdb --noinput']
+attribute :virtualenv_options, :kind_of => String, :default => "--distribute"
 
 def local_settings_base
   local_settings_file.split(/[\\\/]/).last

@@ -49,9 +49,6 @@ action :before_compile do
 end
 
 action :before_deploy do
-
-  new_resource = @new_resource
-
   if new_resource.django
     django_resource = new_resource.application.sub_resources.select{|res| res.type == :django}.first
     raise "No Django deployment resource found" unless django_resource
@@ -106,7 +103,6 @@ action :before_deploy do
       user new_resource.owner
     end
   end
-
 end
 
 action :before_migrate do
