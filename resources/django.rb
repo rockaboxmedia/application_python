@@ -33,6 +33,7 @@ attribute :collectstatic, :kind_of => [TrueClass, FalseClass, String], :default 
 attribute :settings_module, :kind_of => String, :default => "settings"
 attribute :manage_py_migration_commands, :kind_of => Array, :default => ['syncdb --noinput']
 attribute :virtualenv_options, :kind_of => String, :default => "--distribute"
+attribute :django_superusers, :kind_of => Array, :default => []
 
 def local_settings_base
   local_settings_file.split(/[\\\/]/).last
@@ -68,7 +69,7 @@ def create_wsgi(path="conf/django.wsgi", &block)
   @wsgi
 end
 
-# have to wrap attributes in getter methods if you want to
+# have to wrap @ attributes in getter methods if you want to
 # be able to access them from inside the provider
 # (some weird quirk of the Chef LWRP DSL)
 

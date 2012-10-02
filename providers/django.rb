@@ -74,7 +74,11 @@ end
 action :before_symlink do
   # this could also be called 'after_migrate' :)
 
-  create_superusers
+  if new_resource.django_superusers
+    create_superusers
+  else
+    ::Chef::Log.warn("No django superusers created for django application: #{new_resource.name}")
+  end
 
   if new_resource.collectstatic
     cmd = new_resource.collectstatic.is_a?(String) ? new_resource.collectstatic : "collectstatic --noinput"
@@ -108,7 +112,7 @@ end
 protected
 
 def create_superusers
-  node['wsgi_apps'][new_resource.name]['superusers'].each do |superuser|
+  new_resource.django_superusers.each do |superuser|
     # TODO: only if not exists
     python "django_create_superuser" do
       interpreter ::File.join(new_resource.virtualenv, "bin", "python")
@@ -193,7 +197,7 @@ def install_requirements
     # that is a package-centric resource not a generic wrapper on pip so we can't
     # use it to just `pip install -r requirements.txt`
     # So, we copy and paste some relevant bits of code instead...
-    timeout = 900
+    timeout = 1200
     Chef::Log.info("Running: pip install -r #{new_resource.requirements}")
     cmd = shell_out!("#{pip_cmd(new_resource)} install -r #{new_resource.requirements}", :timeout => timeout)
     if cmd
