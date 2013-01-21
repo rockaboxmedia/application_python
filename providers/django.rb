@@ -19,6 +19,7 @@
 #
 
 require 'chef/mixin/shell_out'
+
 include Chef::Mixin::LanguageIncludeRecipe
 include Chef::Mixin::ShellOut
 
