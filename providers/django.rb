@@ -200,7 +200,7 @@ def install_requirements
     # So, we copy and paste some relevant bits of code instead...
     timeout = 1200
     Chef::Log.info("Running: pip install -r #{new_resource.requirements}")
-    cmd = shell_out!("#{pip_cmd(new_resource)} install -r #{new_resource.requirements}", :timeout => timeout)
+    cmd = shell_out!("#{pip_cmd} install -r #{new_resource.requirements}", :timeout => timeout, :user => new_resource.owner)
     if cmd
       new_resource.updated_by_last_action(true)
     end
@@ -242,9 +242,9 @@ def create_wsgi_file
 end
 
 # copy and pasted from 'python' cookbook 'pip' provider, because Chef sucks
-def pip_cmd(nr)
-  if (nr.respond_to?("virtualenv") && nr.virtualenv)
-    ::File.join(nr.virtualenv,'/bin/pip')
+def pip_cmd
+  if (new_resource.respond_to?("virtualenv") && new_resource.virtualenv)
+    ::File.join(new_resource.virtualenv,'/bin/pip')
   elsif "#{node['python']['install_method']}".eql?("source")
     ::File.join("#{node['python']['prefix_dir']}","/bin/pip")
   else

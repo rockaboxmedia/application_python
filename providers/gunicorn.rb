@@ -128,13 +128,7 @@ def install_requirements
   end
   if new_resource.requirements
     Chef::Log.info("Installing using requirements file: #{new_resource.requirements}")
-    # TODO normalise with python/providers/pip.rb 's pip_cmd
-    if new_resource.virtualenv.nil?
-      pip_cmd = 'pip'
-    else
-      pip_cmd = ::File.join(new_resource.virtualenv, 'bin', 'pip')
-    end
-    execute "#{pip_cmd} install --src=#{Dir.tmpdir} -r #{new_resource.requirements}" do
+    execute "#{bin_cmd('pip')} install --src=#{Dir.tmpdir} -r #{new_resource.requirements}" do
       cwd new_resource.release_path
     end
   else
