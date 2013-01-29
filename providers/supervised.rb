@@ -1,4 +1,5 @@
 require 'chef/mixin/shell_out'
+include Chef::Provider::ApplicationBase
 include Chef::Mixin::LanguageIncludeRecipe
 include Chef::Mixin::ShellOut
 
@@ -9,16 +10,11 @@ action :before_symlink do
   shell_out!("#{bin_cmd('pip')} install -r #{new_resource.release_path}/python/requirements.txt",
     :timeout => 1200, :user => new_resource.owner
   )
+  callback(:before_symlink, new_resource.before_symlink)
 end
 
 action :after_restart do
-  Chef::Log.info("SUPERVISED after_restart")
-  
-  supervisor_service "logpopper" do
-    action :restart
-  end
-  
-  supervisor_service "logpopper-recycler" do
+  supervisor_service new_resource.name do
     action :restart
   end
 end
@@ -30,20 +26,13 @@ action :before_deploy do
     action :create
   end
 
-  supervisor_service "logpopper" do
+  supervisor_service new_resource.name do
   	action :enable
-	  environment 'PYTHONPATH' => new_resource.python_path
-	  command "#{bin_cmd('python')} -m rbx.popper --keyspace #{node['cassandra']['keyspace']} #{node['redis']['host']} #{node['cassandra']['host']}"
+	  environment 'PYTHONPATH' => "#{new_resource.release_path}/#{new_resource.code_dir}"
+    directory "#{new_resource.release_path}/#{new_resource.code_dir}"
+	  command "#{bin_cmd('python')} #{new_resource.command_str}"
 	  autostart true
 	  autorestart true
-  end
-
-  supervisor_service "logpopper-recycler" do
-    action :enable
-    environment 'PYTHONPATH' => new_resource.python_path
-    command "#{bin_cmd('python')} -m logpopper.recycler #{node['redis']['host']}"
-    autostart true
-    autorestart true
   end
 end
 
