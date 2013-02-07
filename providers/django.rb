@@ -194,6 +194,12 @@ def install_requirements
     end
   end
   if new_resource.requirements
+    # if it's a relative path, use the release_path in front to make absolute
+    # (because we'll be running from in shared/env/)
+    req_path = new_resource.requirements
+    if not req_path.start_with? '/'
+      req_path = ::File.join(new_resource.release_path, req_path)
+    end
     # The cleanest way to use pip here would be to use the python/pip resource but
     # that is a package-centric resource not a generic wrapper on pip so we can't
     # use it to just `pip install -r requirements.txt`

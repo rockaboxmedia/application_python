@@ -9,7 +9,7 @@ def virtualenv
   "#{path}/shared/env"
 end
 
-# Callback fires before symlinking
+# make possible to define a before_symlink block in user recipe
 def before_symlink(arg=nil, &block)
   arg ||= block
   set_or_return(:before_symlink, arg, :kind_of => [Proc, String])

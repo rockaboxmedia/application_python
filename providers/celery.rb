@@ -18,13 +18,17 @@
 # limitations under the License.
 #
 
+require 'chef/mixin/shell_out'
+
+include Chef::Provider::ApplicationBase
 include Chef::Mixin::LanguageIncludeRecipe
+include Chef::Mixin::ShellOut
 
 action :before_compile do
 
   include_recipe "supervisor"
 
-  raise "You must specify an application module to load" unless new_resource.config
+  raise "You must specify config_module for your celery resource" unless new_resource.config_module
 
   if !new_resource.restart_command
     new_resource.restart_command do
@@ -36,19 +40,21 @@ action :before_compile do
   end
 
   new_resource.symlink_before_migrate.update({
-    new_resource.config_base => new_resource.config,
+    new_resource.config_base => new_resource.config_module,
   })
 
-  new_resource.broker[:transport] ||= "amqplib"
-  new_resource.broker[:host_role] ||= "#{new_resource.application.name}_task_broker"
-  new_resource.broker[:host] ||= begin
-    host = new_resource.find_matching_role(new_resource.broker[:host_role])
-    raise "No task broker host found" unless host
-    host.attribute?('cloud') ? host['cloud']['local_ipv4'] : host['ipaddress']
-  end
 end
 
 action :before_deploy do
+  python_virtualenv new_resource.virtualenv do
+    path new_resource.virtualenv
+    options new_resource.virtualenv_options
+    action :create
+  end
+
+  # execute the before_deploy block defined in user recipe if present
+  callback(:before_deploy, new_resource.before_deploy)
+
   if new_resource.django
     django_resource = new_resource.application.sub_resources.select{|res| res.type == :django}.first
     raise "No Django deployment resource found" unless django_resource
@@ -60,7 +66,7 @@ action :before_deploy do
     owner new_resource.owner
     group new_resource.group
     mode "644"
-    variables :broker => new_resource.broker, :results => new_resource.results
+    variables :config => new_resource.config
   end
 
   cmds = {}
@@ -96,7 +102,7 @@ action :before_deploy do
         command "#{::File.join(django_resource.virtualenv, "bin", "python")} manage.py #{cmd}"
       else
         command cmd
-        environment 'CELERY_CONFIG_MODULE' => new_resource.config
+        environment 'CELERY_CONFIG_MODULE' => new_resource.config_module
       end
       directory ::File.join(new_resource.path, "current")
       autostart false
@@ -106,6 +112,7 @@ action :before_deploy do
 end
 
 action :before_migrate do
+  install_requirements
 end
 
 action :before_symlink do
@@ -115,4 +122,52 @@ action :before_restart do
 end
 
 action :after_restart do
+end
+
+# copy and pasted from Django recipe, because Chef sucks
+def install_requirements
+  if new_resource.requirements.nil?
+    # look for requirements.txt files in common locations
+    [
+      ::File.join(new_resource.release_path, "requirements", "#{node.chef_environment}.txt"),
+      ::File.join(new_resource.release_path, "requirements.txt")
+    ].each do |path|
+      Chef::Log.info("Trying requirements path: " + path)
+      if ::File.exists?(path)
+        new_resource.requirements path
+        break
+      end
+    end
+  end
+  if new_resource.requirements
+    # if it's a relative path, use the release_path in front to make absolute
+    # (because we'll be running from in shared/env/)
+    req_path = new_resource.requirements
+    if not req_path.start_with? '/'
+      req_path = ::File.join(new_resource.release_path, req_path)
+    end
+    # The cleanest way to use pip here would be to use the python/pip resource but
+    # that is a package-centric resource not a generic wrapper on pip so we can't
+    # use it to just `pip install -r requirements.txt`
+    # So, we copy and paste some relevant bits of code instead...
+    timeout = 1200
+    Chef::Log.info("Running: pip install -r #{req_path}")
+    cmd = shell_out!("#{pip_cmd} install -r #{req_path}", :timeout => timeout, :user => new_resource.owner)
+    if cmd
+      new_resource.updated_by_last_action(true)
+    end
+  else
+    Chef::Log.info("No requirements file found")
+  end
+end
+
+# copy and pasted from 'python' cookbook 'pip' provider, because Chef sucks
+def pip_cmd
+  if (new_resource.respond_to?("virtualenv") && new_resource.virtualenv)
+    ::File.join(new_resource.virtualenv,'/bin/pip')
+  elsif "#{node['python']['install_method']}".eql?("source")
+    ::File.join("#{node['python']['prefix_dir']}","/bin/pip")
+  else
+    'pip'
+  end
 end

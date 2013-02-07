@@ -20,8 +20,8 @@
 
 include Chef::Resource::ApplicationBase
 
-attribute :config, :kind_of => [String, NilClass], :default => nil
-attribute :template, :kind_of => [String, NilClass], :default => nil
+attribute :config_module, :kind_of => [String, NilClass], :default => nil
+attribute :template, :kind_of => [String, NilClass], :default => nil# for config file
 attribute :django, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :celeryd, :kind_of => [TrueClass, FalseClass], :default => true
 attribute :celerybeat, :kind_of => [TrueClass, FalseClass], :default => false
@@ -29,19 +29,25 @@ attribute :celerycam, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :camera_class, :kind_of => [String, NilClass], :default => nil
 attribute :flower, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :flower_port, :kind_of => [Integer, NilClass], :default => nil
+attribute :requirements, :kind_of => [NilClass, String, FalseClass], :default => nil
+attribute :virtualenv_options, :kind_of => String, :default => "--distribute"
 
 def config_base
-  config.split(/[\\\/]/).last
+  config_module.split(/[\\\/]/).last
 end
 
-def broker(*args, &block)
-  @broker ||= Mash.new
-  @broker.update(options_block(*args, &block))
-  @broker
+def config(*args, &block)
+  @config ||= Mash.new
+  @config.update(options_block(*args, &block))
+  @config
 end
 
-def results(*args, &block)
-  @results ||= Mash.new
-  @results.update(options_block(*args, &block))
-  @results
+def virtualenv
+  "#{path}/shared/env"
+end
+
+# make possible to define a before_deploy block in user recipe
+def before_deploy(arg=nil, &block)
+  arg ||= block
+  set_or_return(:before_deploy, arg, :kind_of => [Proc, String])
 end

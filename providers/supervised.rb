@@ -10,6 +10,7 @@ action :before_symlink do
   shell_out!("#{bin_cmd('pip')} install -r #{new_resource.release_path}/python/requirements.txt",
     :timeout => 1200, :user => new_resource.owner
   )
+  # execute the before_symlink block defined in user recipe if present
   callback(:before_symlink, new_resource.before_symlink)
 end
 
