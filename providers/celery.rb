@@ -70,7 +70,7 @@ action :before_deploy do
   end
 
   cmds = {}
-  cmds[:celeryd] = "celeryd #{new_resource.celerycam ? "-E" : ""}" if new_resource.celeryd
+  cmds[:celeryd] = "celery worker #{new_resource.celerycam ? "-E" : ""}" if new_resource.celeryd
   cmds[:celerybeat] = "celerybeat" if new_resource.celerycam
   if new_resource.celerycam
     if new_resource.django
@@ -86,6 +86,9 @@ action :before_deploy do
     python_pip "flower" do
       if new_resource.django
         virtualenv django_resource.virtualenv
+      else
+        # how to resolve which virtualenv to use...?
+        virtualenv new_resource.virtualenv
       end
       action :install
     end
@@ -101,8 +104,11 @@ action :before_deploy do
       if new_resource.django
         command "#{::File.join(django_resource.virtualenv, "bin", "python")} manage.py #{cmd}"
       else
-        command cmd
-        environment 'CELERY_CONFIG_MODULE' => new_resource.config_module
+        command ::File.join(new_resource.virtualenv, "bin", cmd)
+        environment({
+          'CELERY_CONFIG_MODULE' => new_resource.config_module,
+          'PYTHONPATH' => ::File.join(new_resource.release_path, "python")
+        })
       end
       directory ::File.join(new_resource.path, "current")
       autostart false
