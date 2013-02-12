@@ -3,6 +3,7 @@ include Chef::Resource::ApplicationBase
 attribute :virtualenv_options, :kind_of => String, :default => "--distribute"
 attribute :code_dir, :kind_of => String, :default => ""
 attribute :command_str, :kind_of => String, :default => ""
+attribute :bin_command, :kind_of => String, :default => "python"# prefix to command_str, from inside virtualenv bin dir
 
 
 def virtualenv

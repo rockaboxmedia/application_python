@@ -104,13 +104,11 @@ action :before_deploy do
       if new_resource.django
         command "#{::File.join(django_resource.virtualenv, "bin", "python")} manage.py #{cmd}"
       else
-        command ::File.join(new_resource.virtualenv, "bin", cmd)
+        command "#{::File.join(new_resource.virtualenv, "bin", cmd)} --workdir=#{::File.join(new_resource.path, "current", new_resource.worker_dir ? new_resource.worker_dir : "")}"
         environment({
-          'CELERY_CONFIG_MODULE' => new_resource.config_module,
-          'PYTHONPATH' => ::File.join(new_resource.release_path, "python")
+          'PYTHONPATH' => "#{::File.join(new_resource.virtualenv, "lib", "python", "site-packages")}"
         })
       end
-      directory ::File.join(new_resource.path, "current")
       autostart false
       user new_resource.owner
     end
@@ -122,6 +120,8 @@ action :before_migrate do
 end
 
 action :before_symlink do
+  # execute the before_symlink block defined in user recipe if present
+  callback(:before_symlink, new_resource.before_symlink)
 end
 
 action :before_restart do

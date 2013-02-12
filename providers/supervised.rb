@@ -27,11 +27,15 @@ action :before_deploy do
     action :create
   end
 
+  # TODO:
+  # release_path is available here on first run?
+  # TODO:
+  # new_resource.name seems to be the parent application name
   supervisor_service new_resource.name do
   	action :enable
 	  environment 'PYTHONPATH' => "#{new_resource.release_path}/#{new_resource.code_dir}"
     directory "#{new_resource.release_path}/#{new_resource.code_dir}"
-	  command "#{bin_cmd('python')} #{new_resource.command_str}"
+	  command "#{bin_cmd(new_resource.bin_command)} #{new_resource.command_str}"
 	  autostart true
 	  autorestart true
   end

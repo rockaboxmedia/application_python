@@ -3,12 +3,12 @@
 
 <% @config.each do |key, val| %>
 <% if val.is_a? String %>
-<%= key.upcase %> = "<%= val %>"
+<%= key.to_s.upcase %> = "<%= val %>"
 <% elsif val.is_a? TrueClass %>
-<%= key.upcase %> = True
+<%= key.to_s.upcase %> = True
 <% elsif val.is_a? FalseClass %>
-<%= key.upcase %> = False
+<%= key.to_s.upcase %> = False
 <% else %>
-<%= key.upcase %> = <%= val %>
+<%= key.to_s.upcase %> = <%= val %>
 <% end %>
 <% end %>

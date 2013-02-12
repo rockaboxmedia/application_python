@@ -21,6 +21,7 @@
 include Chef::Resource::ApplicationBase
 
 attribute :config_module, :kind_of => [String, NilClass], :default => nil
+attribute :worker_dir, :kind_of => [String, NilClass], :default => nil
 attribute :template, :kind_of => [String, NilClass], :default => nil# for config file
 attribute :django, :kind_of => [TrueClass, FalseClass], :default => false
 attribute :celeryd, :kind_of => [TrueClass, FalseClass], :default => true
@@ -46,8 +47,13 @@ def virtualenv
   "#{path}/shared/env"
 end
 
-# make possible to define a before_deploy block in user recipe
+# make possible to define these blocks in user recipe
 def before_deploy(arg=nil, &block)
   arg ||= block
   set_or_return(:before_deploy, arg, :kind_of => [Proc, String])
+end
+
+def before_symlink(arg=nil, &block)
+  arg ||= block
+  set_or_return(:before_symlink, arg, :kind_of => [Proc, String])
 end
