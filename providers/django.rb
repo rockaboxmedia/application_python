@@ -20,6 +20,7 @@
 
 require 'chef/mixin/shell_out'
 
+include Chef::Provider::ApplicationBase
 include Chef::Mixin::LanguageIncludeRecipe
 include Chef::Mixin::ShellOut
 
@@ -74,6 +75,9 @@ end
 
 action :before_symlink do
   # this could also be called 'after_migrate' :)
+
+  # execute the before_symlink block defined in user recipe if present
+  callback(:before_symlink, new_resource.before_symlink)
 
   if new_resource.django_superusers
     create_superusers
@@ -205,8 +209,8 @@ def install_requirements
     # use it to just `pip install -r requirements.txt`
     # So, we copy and paste some relevant bits of code instead...
     timeout = 1200
-    Chef::Log.info("Running: pip install -r #{new_resource.requirements}")
-    cmd = shell_out!("#{pip_cmd} install -r #{new_resource.requirements}", :timeout => timeout, :user => new_resource.owner)
+    Chef::Log.info("Running: pip install -M -r #{new_resource.requirements}")
+    cmd = shell_out!("#{pip_cmd} install -M -r #{new_resource.requirements}", :timeout => timeout, :user => new_resource.owner)
     if cmd
       new_resource.updated_by_last_action(true)
     end
