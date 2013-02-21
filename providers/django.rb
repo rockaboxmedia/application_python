@@ -33,6 +33,7 @@ def make_manage_py_commands(commands)
 end
 
 def site_packages_path
+  # node value comes from 'python' cookbook:
   major_version = node['python']['version'].split('.')[0..-2].join('.')
   ::File.join(new_resource.virtualenv, "lib/python#{major_version}/site-packages/")
 end

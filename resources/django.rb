@@ -66,7 +66,6 @@ def create_wsgi(path="conf/django.wsgi", &block)
   @wsgi ||= Mash.new
   @wsgi[:path] = path
   @wsgi.update(options_block(&block))
-  @wsgi
 end
 
 # have to wrap @ attributes in getter methods if you want to
