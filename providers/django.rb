@@ -157,6 +157,7 @@ u, created = User.objects.get_or_create(
 )
 if created:
   u.set_password('#{superuser['password']}')
+  u.is_superuser = True
   u.save()
       PYTHON
       #ignore_failure true
