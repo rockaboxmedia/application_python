@@ -90,6 +90,8 @@ action :before_deploy do
         # how to resolve which virtualenv to use...?
         virtualenv new_resource.virtualenv
       end
+      # HACK ALERT!
+      options "--editable git+git://github.com/anentropic/flower.git@api-tasks-by-state#egg=flower"
       action :install
     end
     cmds[:flower] = "celery flower"# default port is 5555
